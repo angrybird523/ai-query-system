@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { ChatInterface } from '@/components/chat-interface';
 import { AppConfigPage } from '@/components/app-config-page';
+import { ReplyProofPage } from '@/components/reply-proof-page';
 
 export function HomePage() {
   const [activeMenu, setActiveMenu] = useState('smart-query');
@@ -12,6 +13,8 @@ export function HomePage() {
     switch (activeMenu) {
       case 'app-config':
         return <AppConfigPage />;
+      case 'reply-proof':
+        return <ReplyProofPage />;
       default:
         return <ChatInterface />;
     }
