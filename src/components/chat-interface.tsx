@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { QueryResult } from '@/lib/mock-data';
+import type { HistoryConversation, HistoryMessage } from '@/lib/history-data';
 
 interface Message {
   id: string;
@@ -18,12 +19,30 @@ const suggestedQuestions = [
   '深圳的产品销售情况',
 ];
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+  currentConversation?: HistoryConversation | null;
+  onSendMessage?: (message: string) => void;
+}
+
+export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load history conversation
+  useEffect(() => {
+    if (currentConversation) {
+      const historyMessages: Message[] = currentConversation.messages.map((m: HistoryMessage) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        data: m.data,
+      }));
+      setMessages(historyMessages);
+    }
+  }, [currentConversation]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,12 +119,13 @@ export function ChatInterface() {
   };
 
   const hasMessages = messages.length > 0;
+  const headerTitle = currentConversation?.title || 'AI 智能问数对话';
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <header className="h-16 border-b border-[#E2E8F0] flex items-center justify-between px-6 shrink-0">
-        <h1 className="text-[16px] font-semibold text-[#0F172A]">AI 智能问数对话</h1>
+        <h1 className="text-[16px] font-semibold text-[#0F172A] truncate max-w-md">{headerTitle}</h1>
         <div className="flex items-center gap-4">
           {/* Notification */}
           <button className="relative p-2 rounded-lg hover:bg-[#F1F5F9] transition-colors">
@@ -260,58 +280,117 @@ function MessageBubble({ message }: { message: Message }) {
       </div>
 
       {/* Content */}
-      <div
-        className={cn(
-          'max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-          isUser
-            ? 'bg-[#2563EB] text-white rounded-tr-sm'
-            : 'bg-[#F8FAFC] text-[#0F172A] rounded-tl-sm'
-        )}
-      >
-        {/* Summary text */}
-        <p className={cn(isUser ? 'text-white' : 'text-[#334155]')}>{message.content}</p>
+      <div className={cn('max-w-[75%]', isUser && 'flex flex-col items-end')}>
+        <div
+          className={cn(
+            'rounded-2xl px-4 py-3 text-sm leading-relaxed',
+            isUser
+              ? 'bg-[#EDE9FE] text-[#1E1B4B] rounded-tr-sm'
+              : 'bg-[#F8FAFC] text-[#0F172A] rounded-tl-sm'
+          )}
+        >
+          {/* Summary text */}
+          <p className={cn(isUser ? 'text-[#1E1B4B]' : 'text-[#334155]')}>{message.content}</p>
 
-        {/* Data Table */}
-        {message.data?.table && (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[#E2E8F0]">
-                  {message.data.table.headers.map((h, i) => (
-                    <th key={i} className="text-left py-2 px-2 font-semibold text-[#64748B]">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {message.data.table.rows.map((row, ri) => (
-                  <tr key={ri} className="border-b border-[#E2E8F0]/60 last:border-0">
-                    {row.map((cell, ci) => (
-                      <td key={ci} className="py-2 px-2 text-[#334155]">
-                        {cell}
-                      </td>
+          {/* Data Table */}
+          {message.data?.table && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0]">
+                    {message.data.table.headers.map((h, i) => (
+                      <th key={i} className="text-left py-2 px-2 font-semibold text-[#64748B]">
+                        {h}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {message.data.table.rows.map((row, ri) => (
+                    <tr key={ri} className="border-b border-[#E2E8F0]/60 last:border-0">
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="py-2 px-2 text-[#334155]">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {/* Insights */}
-        {message.data?.insights && (
-          <div className="mt-3 space-y-1.5">
-            <p className="text-xs font-semibold text-[#2563EB]">分析洞察：</p>
-            {message.data.insights.map((insight, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-[#64748B]">
-                <span className="w-1 h-1 rounded-full bg-[#2563EB] mt-1.5 shrink-0" />
-                <span>{insight}</span>
-              </div>
-            ))}
+          {/* Insights */}
+          {message.data?.insights && (
+            <div className="mt-3 space-y-1.5">
+              <p className="text-xs font-semibold text-[#2563EB]">分析洞察：</p>
+              {message.data.insights.map((insight, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs text-[#64748B]">
+                  <span className="w-1 h-1 rounded-full bg-[#2563EB] mt-1.5 shrink-0" />
+                  <span>{insight}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons for AI messages */}
+        {!isUser && !message.loading && (
+          <div className="flex items-center gap-1 mt-1.5 ml-1">
+            <ActionButton title="收藏" icon={<StarIcon />} />
+            <ActionButton title="编辑" icon={<PencilIcon />} />
+            <ActionButton title="刷新" icon={<RefreshIcon />} />
+            <ActionButton title="复制" icon={<CopyIcon />} />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function ActionButton({ title, icon }: { title: string; icon: React.ReactNode }) {
+  return (
+    <button
+      className="p-1 rounded hover:bg-[#E2E8F0] text-[#94A3B8] hover:text-[#2563EB] transition-colors"
+      title={title}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
   );
 }
