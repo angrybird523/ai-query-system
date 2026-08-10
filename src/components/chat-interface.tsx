@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import type { QueryResult } from '@/lib/mock-data';
+import type { QueryResult, ChartData } from '@/lib/mock-data';
 import type { HistoryConversation, HistoryMessage } from '@/lib/history-data';
 import {
   isSpeechSynthesisSupported,
@@ -578,6 +578,11 @@ function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, o
             </div>
           )}
 
+          {/* Data Visualization Chart */}
+          {message.data?.chartData && (
+            <DataVisualizationChart chartData={message.data.chartData} />
+          )}
+
           {/* Insights */}
           {message.data?.insights && (
             <div className="mt-3 space-y-1.5">
@@ -588,6 +593,15 @@ function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, o
                   <span>{insight}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Meta Info */}
+          {message.data?.meta && (
+            <div className="mt-3 pt-2 border-t border-[#E2E8F0]/60 flex items-center gap-3 text-[10px] text-[#94A3B8]">
+              <span>耗时 {message.data.meta.durationMs}ms</span>
+              <span>·</span>
+              <span>{message.data.meta.tokenCount} tokens</span>
             </div>
           )}
         </div>
@@ -618,6 +632,172 @@ function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, o
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* Data Visualization Chart Component */
+function DataVisualizationChart({ chartData }: { chartData: ChartData }) {
+  const { title, categories, series } = chartData;
+  
+  // Chart dimensions
+  const chartHeight = 200;
+  const chartPadding = { top: 20, right: 20, bottom: 40, left: 50 };
+  
+  // Calculate max value for scaling
+  const allValues = series.flatMap(s => s.values);
+  const maxValue = Math.max(...allValues) * 1.15; // Add 15% headroom
+  
+  // Chart area dimensions
+  const chartWidth = 500; // Will be scaled by CSS
+  const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
+  const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+  
+  // Bar calculations
+  const categoryCount = categories.length;
+  const seriesCount = series.length;
+  const groupWidth = plotWidth / categoryCount;
+  const barWidth = Math.min(groupWidth * 0.7 / seriesCount, 40);
+  const groupPadding = (groupWidth - barWidth * seriesCount) / 2;
+  
+  // Color mapping
+  const getColor = (color: 'primary' | 'secondary') => {
+    return color === 'primary' ? '#2563EB' : '#10B981';
+  };
+  
+  // Generate Y-axis ticks
+  const tickCount = 5;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => {
+    const value = (maxValue / tickCount) * i;
+    return Math.round(value);
+  });
+  
+  return (
+    <div className="mt-3 bg-white border border-[#E2E8F0] rounded-xl p-4">
+      {/* Chart Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="12" width="4" height="9" rx="1" />
+            <rect x="10" y="8" width="4" height="13" rx="1" />
+            <rect x="17" y="4" width="4" height="17" rx="1" />
+          </svg>
+          <span className="text-xs font-medium text-[#64748B]">数据可视化</span>
+        </div>
+        <span className="text-xs text-[#334155] font-medium">{title}</span>
+      </div>
+      
+      {/* Legend */}
+      {series.length > 1 && (
+        <div className="flex items-center gap-4 mb-2">
+          {series.map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span 
+                className="w-3 h-3 rounded-sm" 
+                style={{ backgroundColor: getColor(s.color) }}
+              />
+              <span className="text-[10px] text-[#64748B]">{s.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* SVG Chart */}
+      <div className="w-full overflow-x-auto">
+        <svg 
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+          className="w-full h-auto min-w-[300px]"
+          style={{ maxHeight: '240px' }}
+        >
+          {/* Y-axis grid lines and labels */}
+          {ticks.map((tick, i) => {
+            const y = chartPadding.top + plotHeight - (tick / maxValue) * plotHeight;
+            return (
+              <g key={i}>
+                <line
+                  x1={chartPadding.left}
+                  y1={y}
+                  x2={chartWidth - chartPadding.right}
+                  y2={y}
+                  stroke="#E2E8F0"
+                  strokeWidth="1"
+                  strokeDasharray={i === 0 ? '0' : '4,4'}
+                />
+                <text
+                  x={chartPadding.left - 8}
+                  y={y + 3}
+                  textAnchor="end"
+                  className="text-[9px]"
+                  fill="#94A3B8"
+                >
+                  {tick >= 10000 ? `${(tick / 10000).toFixed(1)}万` : tick}
+                </text>
+              </g>
+            );
+          })}
+          
+          {/* Bars */}
+          {categories.map((category, catIndex) => {
+            const groupX = chartPadding.left + catIndex * groupWidth;
+            return (
+              <g key={catIndex}>
+                {series.map((s, seriesIndex) => {
+                  const value = s.values[catIndex] || 0;
+                  const barHeight = (value / maxValue) * plotHeight;
+                  const x = groupX + groupPadding + seriesIndex * barWidth;
+                  const y = chartPadding.top + plotHeight - barHeight;
+                  
+                  return (
+                    <g key={seriesIndex}>
+                      <rect
+                        x={x}
+                        y={y}
+                        width={barWidth - 2}
+                        height={barHeight}
+                        fill={getColor(s.color)}
+                        rx="3"
+                        opacity="0.9"
+                      />
+                      {/* Value label on top of bar */}
+                      {barHeight > 20 && (
+                        <text
+                          x={x + (barWidth - 2) / 2}
+                          y={y - 4}
+                          textAnchor="middle"
+                          className="text-[8px] font-medium"
+                          fill="#334155"
+                        >
+                          {value >= 10000 ? `${(value / 10000).toFixed(1)}万` : value}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+                {/* X-axis label */}
+                <text
+                  x={groupX + groupWidth / 2}
+                  y={chartHeight - 10}
+                  textAnchor="middle"
+                  className="text-[10px]"
+                  fill="#64748B"
+                >
+                  {category.length > 6 ? category.slice(0, 6) + '...' : category}
+                </text>
+              </g>
+            );
+          })}
+          
+          {/* X-axis line */}
+          <line
+            x1={chartPadding.left}
+            y1={chartPadding.top + plotHeight}
+            x2={chartWidth - chartPadding.right}
+            y2={chartPadding.top + plotHeight}
+            stroke="#CBD5E1"
+            strokeWidth="1"
+          />
+        </svg>
       </div>
     </div>
   );

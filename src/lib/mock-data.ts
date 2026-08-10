@@ -59,6 +59,27 @@ export function formatRevenue(value: number): string {
   return value.toLocaleString() + ' 元';
 }
 
+// 图表数据接口
+export interface ChartData {
+  title: string;
+  categories: string[];
+  series: ChartSeries[];
+}
+
+export interface ChartSeries {
+  name: string;
+  values: number[];
+  color: 'primary' | 'secondary';
+  unit?: string;
+}
+
+// 元信息接口
+export interface QueryMeta {
+  durationMs: number;
+  tokenCount: number;
+  timestamp: number;
+}
+
 export interface QueryResult {
   summary: string;
   table?: {
@@ -66,6 +87,17 @@ export interface QueryResult {
     rows: string[][];
   };
   insights: string[];
+  chartData?: ChartData;
+  meta?: QueryMeta;
+}
+
+// 生成随机 meta 信息
+function generateMeta(): QueryMeta {
+  return {
+    durationMs: Math.floor(Math.random() * 1300) + 1200,
+    tokenCount: Math.floor(Math.random() * 700) + 800,
+    timestamp: Date.now(),
+  };
 }
 
 export function querySalesData(question: string): QueryResult {
@@ -81,6 +113,16 @@ export function querySalesData(question: string): QueryResult {
       return [pl, formatRevenue(totalRevenue), totalQuantity.toString(), records.length.toString()];
     });
 
+    // 计算图表数据
+    const revenueValues = productLines.map((pl) => {
+      const records = salesData.filter((r) => r.productLine === pl);
+      return Number((records.reduce((sum, r) => sum + r.revenue, 0) / 10000).toFixed(2));
+    });
+    const quantityValues = productLines.map((pl) => {
+      const records = salesData.filter((r) => r.productLine === pl);
+      return records.reduce((sum, r) => sum + r.quantity, 0);
+    });
+
     return {
       summary: '以下是 2025 年 Q1（1-3月）各产品线的销售汇总数据：',
       table: {
@@ -92,6 +134,15 @@ export function querySalesData(question: string): QueryResult {
         '数据分析平台增长势头良好，3月环比增长明显',
         '智能办公套件销量最大，但客单价较低，可考虑推出高级版本',
       ],
+      chartData: {
+        title: '各产品线营收与销量对比',
+        categories: productLines,
+        series: [
+          { name: '总营收(万元)', values: revenueValues, color: 'primary', unit: '万元' },
+          { name: '总销量', values: quantityValues, color: 'secondary' },
+        ],
+      },
+      meta: generateMeta(),
     };
   }
 
@@ -113,6 +164,16 @@ export function querySalesData(question: string): QueryResult {
 
     const totalCityRevenue = cityRecords.reduce((sum, r) => sum + r.revenue, 0);
 
+    // 计算图表数据
+    const revenueValues = productLines.map((pl) => {
+      const records = cityRecords.filter((r) => r.productLine === pl);
+      return Number((records.reduce((sum, r) => sum + r.revenue, 0) / 10000).toFixed(2));
+    });
+    const quantityValues = productLines.map((pl) => {
+      const records = cityRecords.filter((r) => r.productLine === pl);
+      return records.reduce((sum, r) => sum + r.quantity, 0);
+    });
+
     return {
       summary: `以下是 ${matchedCity} 2025 年 Q1 各产品线的销售明细：`,
       table: {
@@ -124,6 +185,15 @@ export function querySalesData(question: string): QueryResult {
         `企业云服务在${matchedCity}表现最强，建议持续加大投入`,
         q.includes('产品') ? `${matchedCity}各产品线发展较为均衡，无明显短板` : `${matchedCity}市场潜力较大，可考虑增加资源投入`,
       ],
+      chartData: {
+        title: `${matchedCity} 各产品线营收对比`,
+        categories: productLines,
+        series: [
+          { name: '营收(万元)', values: revenueValues, color: 'primary', unit: '万元' },
+          { name: '销量', values: quantityValues, color: 'secondary' },
+        ],
+      },
+      meta: generateMeta(),
     };
   }
 
@@ -149,5 +219,6 @@ export function querySalesData(question: string): QueryResult {
       '例如："北京的产品线收入情况"、"深圳的产品销售情况"',
       '目前数据覆盖北京、上海、深圳、广州四个城市',
     ],
+    meta: generateMeta(),
   };
 }
