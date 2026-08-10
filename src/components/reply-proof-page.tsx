@@ -7,41 +7,75 @@ interface FeedbackRecord {
   id: number;
   user: string;
   question: string;
+  aiReply: string;
   time: string;
   status: '待处理' | '已处理';
+  remark: string;
 }
 
-const mockData: FeedbackRecord[] = [
-  { id: 1, user: '张经理', question: '上季度销售目标达成率', time: '2026/8/5 15:38:05', status: '待处理' },
-  { id: 2, user: '李主管', question: '本月应收账款账龄', time: '2026/8/2 15:38:05', status: '待处理' },
-  { id: 3, user: '王主任', question: '各区域成本对比', time: '2026/7/30 15:38:05', status: '待处理' },
-  { id: 4, user: '赵专员', question: '年度预算执行情况', time: '2026/7/27 15:38:05', status: '待处理' },
-  { id: 5, user: '张经理', question: '上季度销售目标达成率', time: '2026/7/24 15:38:05', status: '待处理' },
-  { id: 6, user: '李主管', question: '本月应收账款账龄', time: '2026/7/21 15:38:05', status: '待处理' },
+const initialData: FeedbackRecord[] = [
+  { id: 1, user: '张经理', question: '上季度销售目标达成率', aiReply: '上季度销售目标达成率为90%，已超额完成目标。详细数据请参见销售达成率趋势图。', time: '2026/8/5 15:38:05', status: '待处理', remark: '' },
+  { id: 2, user: '李主管', question: '本月应收账款账龄', aiReply: '本月应收账款账龄分布如下：30天以内占比62%，30-60天占比23%，60-90天占比10%，90天以上占比5%。整体回款情况良好。', time: '2026/8/2 15:38:05', status: '待处理', remark: '' },
+  { id: 3, user: '王主任', question: '各区域成本对比', aiReply: '各区域成本对比结果：华东区域成本最高，占总成本35%；华南区域次之，占28%；华北区域占22%；西部区域占15%。', time: '2026/7/30 15:38:05', status: '待处理', remark: '' },
+  { id: 4, user: '赵专员', question: '年度预算执行情况', aiReply: '年度预算执行率为78%，其中研发部门执行率最高达92%，市场部门执行率为85%，行政部门执行率为65%。', time: '2026/7/27 15:38:05', status: '待处理', remark: '' },
+  { id: 5, user: '张经理', question: '上季度销售目标达成率', aiReply: '上季度销售目标达成率为87%，略低于预期目标。主要受华南区域业绩下滑影响，建议加强该区域销售策略。', time: '2026/7/24 15:38:05', status: '待处理', remark: '' },
+  { id: 6, user: '李主管', question: '本月应收账款账龄', aiReply: '本月应收账款总额1200万元，其中30天以内720万元（60%），30-60天276万元（23%），60天以上204万元（17%）。', time: '2026/7/21 15:38:05', status: '待处理', remark: '' },
 ];
 
 const PAGE_SIZE = 10;
 
 export function ReplyProofPage() {
+  const [data, setData] = useState<FeedbackRecord[]>(initialData);
   const [searchQuestion, setSearchQuestion] = useState('');
   const [searchUser, setSearchUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<FeedbackRecord | null>(null);
+  const [modalStatus, setModalStatus] = useState<'待处理' | '已处理'>('待处理');
+  const [modalRemark, setModalRemark] = useState('');
+
   const filteredData = useMemo(() => {
-    return mockData.filter((item) => {
+    return data.filter((item) => {
       const matchQuestion = !searchQuestion || item.question.includes(searchQuestion);
       const matchUser = !searchUser || item.user.includes(searchUser);
       const matchStatus = statusFilter === 'all' || item.status === statusFilter;
       return matchQuestion && matchUser && matchStatus;
     });
-  }, [searchQuestion, searchUser, statusFilter]);
+  }, [data, searchQuestion, searchUser, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const paginatedData = filteredData.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
+
+  const handleOpenModal = (record: FeedbackRecord) => {
+    setSelectedRecord(record);
+    setModalStatus(record.status);
+    setModalRemark(record.remark);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedRecord(null);
+  };
+
+  const handleConfirm = () => {
+    if (!selectedRecord) return;
+    setData((prev) =>
+      prev.map((item) =>
+        item.id === selectedRecord.id
+          ? { ...item, status: modalStatus, remark: modalRemark }
+          : item
+      )
+    );
+    setModalOpen(false);
+    setSelectedRecord(null);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -148,7 +182,10 @@ export function ReplyProofPage() {
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="py-3 px-4">
-                        <button className="text-[#2563EB] hover:text-[#1D4ED8] font-medium text-sm transition-colors">
+                        <button
+                          onClick={() => handleOpenModal(item)}
+                          className="text-[#2563EB] hover:text-[#1D4ED8] font-medium text-sm transition-colors"
+                        >
                           处理
                         </button>
                       </td>
@@ -213,6 +250,101 @@ export function ReplyProofPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal */}
+      {modalOpen && selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={handleCloseModal}
+          />
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-[680px] max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚠️</span>
+                <h3 className="text-[16px] font-semibold text-[#0F172A]">反馈处理</h3>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="p-1.5 rounded-lg hover:bg-[#F1F5F9] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="flex gap-5">
+                {/* Left Column */}
+                <div className="flex-1 space-y-4">
+                  {/* User Question */}
+                  <div>
+                    <label className="text-[13px] font-medium text-[#64748B] mb-1.5 block">用户提问</label>
+                    <div className="px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[14px] text-[#0F172A]">
+                      {selectedRecord.question}
+                    </div>
+                  </div>
+                  {/* AI Reply */}
+                  <div>
+                    <label className="text-[13px] font-medium text-[#64748B] mb-1.5 block">AI回复</label>
+                    <div className="px-3.5 py-2.5 bg-[#FFF7ED] border border-[#FED7AA] rounded-lg text-[14px] text-[#9A3412] leading-relaxed">
+                      {selectedRecord.aiReply}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="w-[200px] space-y-4">
+                  {/* Status Select */}
+                  <div>
+                    <label className="text-[13px] font-medium text-[#64748B] mb-1.5 block">处理状态</label>
+                    <select
+                      value={modalStatus}
+                      onChange={(e) => setModalStatus(e.target.value as '待处理' | '已处理')}
+                      className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 transition-all cursor-pointer"
+                    >
+                      <option value="待处理">待处理</option>
+                      <option value="已处理">已处理</option>
+                    </select>
+                  </div>
+                  {/* Remark */}
+                  <div>
+                    <label className="text-[13px] font-medium text-[#64748B] mb-1.5 block">处理备注</label>
+                    <textarea
+                      value={modalRemark}
+                      onChange={(e) => setModalRemark(e.target.value)}
+                      placeholder="请输入处理备注..."
+                      rows={5}
+                      className="w-full px-3 py-2 text-sm border border-[#E2E8F0] rounded-lg bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E2E8F0]">
+              <button
+                onClick={handleCloseModal}
+                className="px-4 py-2 text-sm font-medium text-[#334155] bg-white border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors"
+              >
+                ✓ 确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
