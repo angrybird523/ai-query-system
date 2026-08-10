@@ -6,15 +6,15 @@ import { ChatInterface } from '@/components/chat-interface';
 import { AppConfigPage } from '@/components/app-config-page';
 import { ReplyProofPage } from '@/components/reply-proof-page';
 import { HistoryPanel } from '@/components/history-panel';
-import { historyConversations, type HistoryConversation } from '@/lib/history-data';
+import { historyConversations as initialConversations, type HistoryConversation } from '@/lib/history-data';
 
 export function HomePage() {
   const [activeMenu, setActiveMenu] = useState('smart-query');
   const [showHistory, setShowHistory] = useState(true); // 默认展开
+  const [conversations, setConversations] = useState<HistoryConversation[]>(initialConversations);
   const [selectedConversation, setSelectedConversation] = useState<HistoryConversation | null>(null);
 
   const handleMenuChange = (menu: string) => {
-    // 只切换页面，不改变侧边栏状态
     setActiveMenu(menu);
     if (menu !== 'smart-query') {
       setSelectedConversation(null);
@@ -35,6 +35,14 @@ export function HomePage() {
 
   const handleOpenHistory = () => {
     setShowHistory(true);
+  };
+
+  const handleDeleteConversation = (id: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    // If the deleted conversation was selected, clear selection
+    if (selectedConversation?.id === id) {
+      setSelectedConversation(null);
+    }
   };
 
   const renderContent = () => {
@@ -62,11 +70,12 @@ export function HomePage() {
       {/* 历史对话面板 - 仅在智能问数页面显示 */}
       {isSmartQueryPage && showHistory && (
         <HistoryPanel
-          conversations={historyConversations}
+          conversations={conversations}
           selectedId={selectedConversation?.id || null}
           onSelect={handleSelectConversation}
           onNewChat={handleNewChat}
           onClose={handleCloseHistory}
+          onDelete={handleDeleteConversation}
         />
       )}
       

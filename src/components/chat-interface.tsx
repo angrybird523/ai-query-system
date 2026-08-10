@@ -393,6 +393,7 @@ interface MessageBubbleProps {
 
 function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, onStopSpeaking }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const [analysisExpanded, setAnalysisExpanded] = useState(false);
 
   if (message.loading) {
     return (
@@ -435,6 +436,106 @@ function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, o
 
       {/* Content */}
       <div className={cn('max-w-[75%]', isUser && 'flex flex-col items-end')}>
+        {/* Analysis Process - Only for AI messages with data */}
+        {!isUser && message.data && (
+          <div className="mb-2">
+            <button
+              onClick={() => setAnalysisExpanded(!analysisExpanded)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] hover:bg-[#DBEAFE] transition-colors group"
+            >
+              {/* Chip/Analysis icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              <span className="text-xs font-medium text-[#2563EB]">分析过程</span>
+              {/* Arrow */}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#2563EB"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={cn('transition-transform duration-200', analysisExpanded && 'rotate-90')}
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+              <span className="text-xs text-[#64748B]">{analysisExpanded ? '点击收起' : '点击展开'}</span>
+            </button>
+
+            {/* Expanded Analysis Content */}
+            {analysisExpanded && (
+              <div className="mt-2 bg-[#EFF6FF]/50 border border-[#BFDBFE] rounded-xl p-4 space-y-4">
+                {/* ① Data Discovery */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                    <span className="text-xs font-semibold text-[#0F172A]">数据发现</span>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-xs text-[#334155] space-y-1">
+                    <p><span className="text-[#64748B]">数据源：</span>经营数据台账</p>
+                    <p><span className="text-[#64748B]">查询范围：</span>2025年 Q1（1-3月）</p>
+                    <p><span className="text-[#64748B]">数据维度：</span>{message.data.table?.headers.join('、') || '综合维度'}</p>
+                    <p><span className="text-[#64748B]">数据条数：</span>{message.data.table?.rows.length || 0} 条记录</p>
+                  </div>
+                </div>
+
+                {/* ② Data Table */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                    <span className="text-xs font-semibold text-[#0F172A]">数据表格</span>
+                  </div>
+                  {message.data.table && (
+                    <div className="bg-white rounded-lg p-3 overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-[#E2E8F0]">
+                            {message.data.table.headers.map((h, i) => (
+                              <th key={i} className="text-left py-1.5 px-2 font-semibold text-[#64748B]">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {message.data.table.rows.map((row, ri) => (
+                            <tr key={ri} className="border-b border-[#E2E8F0]/60 last:border-0">
+                              {row.map((cell, ci) => (
+                                <td key={ci} className="py-1.5 px-2 text-[#334155]">
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ③ Data Statistics */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[10px] font-bold flex items-center justify-center">3</span>
+                    <span className="text-xs font-semibold text-[#0F172A]">数据统计</span>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 space-y-1.5">
+                    {message.data.insights?.map((insight, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-[#334155]">
+                        <span className="w-1 h-1 rounded-full bg-[#2563EB] mt-1.5 shrink-0" />
+                        <span>{insight}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div
           className={cn(
             'rounded-2xl px-4 py-3 text-sm leading-relaxed',
