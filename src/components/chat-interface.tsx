@@ -397,6 +397,26 @@ interface MessageBubbleProps {
 function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, onStopSpeaking }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [analysisExpanded, setAnalysisExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [feedbackState, setFeedbackState] = useState<'helpful' | 'not-helpful' | null>(null);
+  const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
+
+  // Copy handler
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
+  };
+
+  // Feedback handler
+  const handleFeedback = (type: 'helpful' | 'not-helpful') => {
+    setFeedbackState(type);
+    setShowFeedbackPanel(false);
+  };
 
   if (message.loading) {
     return (
@@ -595,41 +615,113 @@ function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, o
               ))}
             </div>
           )}
-
-          {/* Meta Info */}
-          {message.data?.meta && (
-            <div className="mt-3 pt-2 border-t border-[#E2E8F0]/60 flex items-center gap-3 text-[10px] text-[#94A3B8]">
-              <span>耗时 {message.data.meta.durationMs}ms</span>
-              <span>·</span>
-              <span>{message.data.meta.tokenCount} tokens</span>
-            </div>
-          )}
         </div>
 
-        {/* Action buttons for AI messages */}
+        {/* Action Bar for AI messages */}
         {!isUser && !message.loading && (
-          <div className="flex items-center gap-1 mt-1.5 ml-1">
-            <ActionButton title="收藏" icon={<StarIcon />} />
-            <ActionButton title="编辑" icon={<PencilIcon />} />
-            <ActionButton title="刷新" icon={<RefreshIcon />} />
-            <ActionButton title="复制" icon={<CopyIcon />} />
-            {/* TTS Button */}
-            {ttsSupported && (
-              <ActionButton
-                title={isSpeaking ? (isPaused ? '继续朗读' : '暂停朗读') : '朗读'}
-                icon={isSpeaking && !isPaused ? <PauseIcon /> : <SpeakerIcon />}
-                active={isSpeaking}
-                onClick={onSpeak}
-              />
-            )}
-            {/* Stop speaking button */}
-            {isSpeaking && (
-              <ActionButton
-                title="停止朗读"
-                icon={<StopIcon />}
-                onClick={onStopSpeaking}
-              />
-            )}
+          <div className="mt-1 border-t border-[#E2E8F0] pt-2 px-1">
+            <div className="flex items-center justify-between">
+              {/* Left: Action buttons */}
+              <div className="flex items-center gap-1">
+                {/* Copy button */}
+                <button
+                  onClick={handleCopy}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
+                    copied
+                      ? 'text-[#10B981] bg-[#ECFDF5]'
+                      : 'text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#EFF6FF]'
+                  )}
+                  title="复制"
+                >
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                  <span>{copied ? '已复制' : '复制'}</span>
+                </button>
+
+                {/* Feedback button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
+                      feedbackState
+                        ? 'text-[#2563EB] bg-[#EFF6FF]'
+                        : 'text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#EFF6FF]'
+                    )}
+                    title="反馈"
+                  >
+                    <ThumbsUpIcon filled={feedbackState === 'helpful'} />
+                    <span>{feedbackState ? '已反馈' : '反馈'}</span>
+                  </button>
+
+                  {/* Feedback Panel */}
+                  {showFeedbackPanel && !feedbackState && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-lg p-1 z-10 min-w-[100px]">
+                      <button
+                        onClick={() => handleFeedback('helpful')}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#334155] hover:bg-[#F1F5F9] rounded-md transition-colors"
+                      >
+                        <span>👍</span>
+                        <span>有帮助</span>
+                      </button>
+                      <button
+                        onClick={() => handleFeedback('not-helpful')}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#334155] hover:bg-[#F1F5F9] rounded-md transition-colors"
+                      >
+                        <span>👎</span>
+                        <span>无帮助</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Speak button - only show if TTS is supported */}
+                {ttsSupported && (
+                  <button
+                    onClick={onSpeak}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
+                      isSpeaking
+                        ? 'text-[#2563EB] bg-[#EFF6FF]'
+                        : 'text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#EFF6FF]'
+                    )}
+                    title={isSpeaking ? (isPaused ? '继续朗读' : '暂停朗读') : '朗读'}
+                  >
+                    {isSpeaking && !isPaused ? <PauseIcon /> : <SpeakerIcon />}
+                    <span>{isSpeaking ? (isPaused ? '继续' : '暂停') : '朗读'}</span>
+                  </button>
+                )}
+
+                {/* Stop speaking button - show when speaking */}
+                {isSpeaking && (
+                  <button
+                    onClick={onStopSpeaking}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"
+                    title="停止朗读"
+                  >
+                    <StopIcon />
+                    <span>停止</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Right: Meta info */}
+              <div className="flex items-center gap-2 text-xs text-[#94A3B8]">
+                {message.data?.meta && (
+                  <>
+                    <span>耗时 {(message.data.meta.durationMs / 1000).toFixed(1)}s</span>
+                    <span>·</span>
+                    <span>Token: {message.data.meta.tokenCount}</span>
+                    <span>·</span>
+                  </>
+                )}
+                <span>
+                  {message.data?.meta
+                    ? new Date(message.data.meta.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -803,64 +895,20 @@ function DataVisualizationChart({ chartData }: { chartData: ChartData }) {
   );
 }
 
-/* Action Button Component */
-interface ActionButtonProps {
-  title: string;
-  icon: React.ReactNode;
-  active?: boolean;
-  onClick?: () => void;
-}
-
-function ActionButton({ title, icon, active, onClick }: ActionButtonProps) {
-  return (
-    <button
-      className={cn(
-        'p-1 rounded transition-colors',
-        active
-          ? 'text-[#2563EB] bg-[#EFF6FF]'
-          : 'text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#E2E8F0]'
-      )}
-      title={title}
-      onClick={onClick}
-    >
-      {icon}
-    </button>
-  );
-}
-
 /* Icon Components */
-function StarIcon() {
+function ThumbsUpIcon({ filled = false }: { filled?: boolean }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10v12" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
     </svg>
   );
 }
 
-function PencilIcon() {
+function CheckIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-      <path d="M8 16H3v5" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
@@ -888,6 +936,15 @@ function StopIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </svg>
   );
 }
