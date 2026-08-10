@@ -26,7 +26,15 @@ export function HomePage() {
   };
 
   const handleNewChat = () => {
-    setSelectedConversation(null);
+    // Create a new conversation entry
+    const newConversation: HistoryConversation = {
+      id: `new-${Date.now()}`,
+      title: '新对话',
+      messages: [],
+    };
+    // Add to top of list and select it
+    setConversations((prev) => [newConversation, ...prev]);
+    setSelectedConversation(newConversation);
   };
 
   const handleCloseHistory = () => {

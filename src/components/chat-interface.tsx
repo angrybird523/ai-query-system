@@ -60,6 +60,9 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
         data: m.data,
       }));
       setMessages(historyMessages);
+    } else {
+      // Clear messages when no conversation is selected (welcome page)
+      setMessages([]);
     }
   }, [currentConversation]);
 
