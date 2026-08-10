@@ -75,7 +75,7 @@ export function HistoryPanel({
               <button
                 onClick={() => onSelect(conv)}
                 className={cn(
-                  'w-full text-left px-3 py-2.5 pr-8 rounded-lg text-[13px] transition-all duration-150 truncate',
+                  'w-full text-left px-3 py-2.5 pr-8 rounded-lg text-[13px] transition-all duration-150 truncate cursor-pointer',
                   selectedId === conv.id
                     ? 'bg-[#EFF6FF] text-[#2563EB] font-medium'
                     : 'text-[#334155] hover:bg-[#E2E8F0]/60'
