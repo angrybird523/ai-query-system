@@ -211,8 +211,16 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
         onError: (error) => {
           console.error('STT Error:', error);
           setIsRecording(false);
-          // Show error as a temporary message
-          alert(error);
+          // Show error as a temporary message in chat
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `error-${Date.now()}`,
+              role: 'assistant',
+              content: `⚠️ ${error}`,
+              timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
         },
       });
     }

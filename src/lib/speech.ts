@@ -170,29 +170,41 @@ export function startRecording(callbacks: STTCallbacks): void {
   recognition.onerror = (event) => {
     isRecordingState = false;
     let errorMessage = '语音识别出错';
+    let errorDetail = '';
     
     switch (event.error) {
       case 'no-speech':
         errorMessage = '未检测到语音，请重试';
+        errorDetail = '请确保对着麦克风说话，声音清晰可辨';
         break;
       case 'audio-capture':
         errorMessage = '未找到麦克风设备';
+        errorDetail = '请检查麦克风是否已连接并正常工作';
         break;
       case 'not-allowed':
-        errorMessage = '麦克风权限被拒绝，请在浏览器设置中允许麦克风访问';
+        errorMessage = '麦克风权限被拒绝';
+        errorDetail = '请在浏览器设置中允许访问麦克风';
         break;
       case 'network':
-        errorMessage = '网络错误，语音识别需要联网';
+        errorMessage = '语音识别服务连接失败';
+        errorDetail = '语音识别依赖 Google 服务，当前网络环境可能无法访问。您可以直接使用键盘输入问题。';
         break;
       case 'aborted':
         // 用户主动停止，不显示错误
         callbacks.onEnd?.();
         return;
+      case 'service-not-allowed':
+        errorMessage = '语音识别服务不可用';
+        errorDetail = '当前环境不支持语音识别服务，请使用键盘输入';
+        break;
       default:
         errorMessage = `语音识别错误: ${event.error}`;
+        errorDetail = '请尝试刷新页面或使用键盘输入';
     }
     
-    callbacks.onError?.(errorMessage);
+    // 组合错误消息
+    const fullMessage = errorDetail ? `${errorMessage}。${errorDetail}` : errorMessage;
+    callbacks.onError?.(fullMessage);
   };
 
   try {
