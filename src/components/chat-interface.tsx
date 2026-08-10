@@ -4,6 +4,18 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { QueryResult } from '@/lib/mock-data';
 import type { HistoryConversation, HistoryMessage } from '@/lib/history-data';
+import {
+  isSpeechSynthesisSupported,
+  isSpeechRecognitionSupported,
+  speak,
+  stopSpeaking,
+  pauseSpeaking,
+  resumeSpeaking,
+  isSpeaking,
+  isPaused,
+  startRecording,
+  stopRecording,
+} from '@/lib/speech';
 
 interface Message {
   id: string;
@@ -28,8 +40,15 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [isPausedState, setIsPausedState] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check browser support
+  const ttsSupported = isSpeechSynthesisSupported();
+  const sttSupported = isSpeechRecognitionSupported();
 
   // Load history conversation
   useEffect(() => {
@@ -51,6 +70,14 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+      stopRecording();
+    };
+  }, []);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -118,6 +145,79 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
     }
   };
 
+  // TTS handlers
+  const handleSpeak = (messageId: string, text: string) => {
+    if (speakingId === messageId) {
+      if (isPausedState) {
+        resumeSpeaking();
+        setIsPausedState(false);
+      } else {
+        pauseSpeaking();
+        setIsPausedState(true);
+      }
+      return;
+    }
+
+    // Stop any current speech
+    stopSpeaking();
+    setSpeakingId(null);
+    setIsPausedState(false);
+
+    speak(text, {
+      rate: 1,
+      volume: 1,
+      lang: 'zh-CN',
+      onStart: () => {
+        setSpeakingId(messageId);
+        setIsPausedState(false);
+      },
+      onEnd: () => {
+        setSpeakingId(null);
+        setIsPausedState(false);
+      },
+      onError: (error) => {
+        console.error('TTS Error:', error);
+        setSpeakingId(null);
+        setIsPausedState(false);
+      },
+    });
+  };
+
+  const handleStopSpeaking = () => {
+    stopSpeaking();
+    setSpeakingId(null);
+    setIsPausedState(false);
+  };
+
+  // STT handlers
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+      setIsRecording(false);
+    } else {
+      startRecording({
+        onResult: (transcript) => {
+          setInputValue(transcript);
+        },
+        onFinalResult: (transcript) => {
+          setInputValue(transcript);
+        },
+        onStart: () => {
+          setIsRecording(true);
+        },
+        onEnd: () => {
+          setIsRecording(false);
+        },
+        onError: (error) => {
+          console.error('STT Error:', error);
+          setIsRecording(false);
+          // Show error as a temporary message
+          alert(error);
+        },
+      });
+    }
+  };
+
   const hasMessages = messages.length > 0;
   const headerTitle = currentConversation?.title || 'AI 智能问数对话';
 
@@ -174,7 +274,15 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
           /* Messages */
           <div className="max-w-3xl mx-auto px-6 py-6 space-y-5">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                ttsSupported={ttsSupported}
+                isSpeaking={speakingId === msg.id}
+                isPaused={speakingId === msg.id && isPausedState}
+                onSpeak={() => handleSpeak(msg.id, msg.content)}
+                onStopSpeaking={handleStopSpeaking}
+              />
             ))}
             <div ref={messagesEndRef} />
           </div>
@@ -196,19 +304,48 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="请写下您的想法..."
-              className="flex-1 bg-transparent outline-none text-sm text-[#0F172A] placeholder:text-[#94A3B8]"
+              placeholder={isRecording ? '正在聆听...' : '请写下您的想法...'}
+              className={cn(
+                'flex-1 bg-transparent outline-none text-sm text-[#0F172A] placeholder:text-[#94A3B8]',
+                isRecording && 'placeholder:text-red-400'
+              )}
               disabled={isLoading}
             />
 
-            {/* Microphone */}
-            <button className="p-1.5 rounded-md hover:bg-[#E2E8F0] transition-colors shrink-0" title="语音输入">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" x2="12" y1="19" y2="22" />
-              </svg>
-            </button>
+            {/* Microphone - STT */}
+            {sttSupported ? (
+              <button
+                onClick={handleToggleRecording}
+                className={cn(
+                  'p-1.5 rounded-md transition-all shrink-0 relative',
+                  isRecording
+                    ? 'bg-red-50 text-red-500 animate-pulse'
+                    : 'hover:bg-[#E2E8F0] text-[#94A3B8] hover:text-[#64748B]'
+                )}
+                title={isRecording ? '停止录音' : '语音输入'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+                {isRecording && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                )}
+              </button>
+            ) : (
+              <button
+                className="p-1.5 rounded-md text-[#CBD5E1] cursor-not-allowed shrink-0"
+                title="浏览器不支持语音输入"
+                disabled
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              </button>
+            )}
 
             {/* Send Button */}
             <button
@@ -237,7 +374,16 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
 }
 
 /* Message Bubble Component */
-function MessageBubble({ message }: { message: Message }) {
+interface MessageBubbleProps {
+  message: Message;
+  ttsSupported: boolean;
+  isSpeaking: boolean;
+  isPaused: boolean;
+  onSpeak: () => void;
+  onStopSpeaking: () => void;
+}
+
+function MessageBubble({ message, ttsSupported, isSpeaking, isPaused, onSpeak, onStopSpeaking }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   if (message.loading) {
@@ -341,6 +487,23 @@ function MessageBubble({ message }: { message: Message }) {
             <ActionButton title="编辑" icon={<PencilIcon />} />
             <ActionButton title="刷新" icon={<RefreshIcon />} />
             <ActionButton title="复制" icon={<CopyIcon />} />
+            {/* TTS Button */}
+            {ttsSupported && (
+              <ActionButton
+                title={isSpeaking ? (isPaused ? '继续朗读' : '暂停朗读') : '朗读'}
+                icon={isSpeaking && !isPaused ? <PauseIcon /> : <SpeakerIcon />}
+                active={isSpeaking}
+                onClick={onSpeak}
+              />
+            )}
+            {/* Stop speaking button */}
+            {isSpeaking && (
+              <ActionButton
+                title="停止朗读"
+                icon={<StopIcon />}
+                onClick={onStopSpeaking}
+              />
+            )}
           </div>
         )}
       </div>
@@ -348,17 +511,32 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
-function ActionButton({ title, icon }: { title: string; icon: React.ReactNode }) {
+/* Action Button Component */
+interface ActionButtonProps {
+  title: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+}
+
+function ActionButton({ title, icon, active, onClick }: ActionButtonProps) {
   return (
     <button
-      className="p-1 rounded hover:bg-[#E2E8F0] text-[#94A3B8] hover:text-[#2563EB] transition-colors"
+      className={cn(
+        'p-1 rounded transition-colors',
+        active
+          ? 'text-[#2563EB] bg-[#EFF6FF]'
+          : 'text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#E2E8F0]'
+      )}
       title={title}
+      onClick={onClick}
     >
       {icon}
     </button>
   );
 }
 
+/* Icon Components */
 function StarIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -391,6 +569,33 @@ function CopyIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="4" width="4" height="16" />
+      <rect x="14" y="4" width="4" height="16" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   );
 }
