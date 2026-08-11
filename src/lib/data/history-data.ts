@@ -1,28 +1,21 @@
-import type { QueryResult } from './mock-data';
+/**
+ * 文件名: history-data.ts
+ * 功能描述: 历史对话模拟数据，提供8条预设的对话记录用于展示历史面板
+ * 主要导出: historyConversations（历史对话数组）
+ */
 
-export interface HistoryMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  data?: QueryResult;
-}
+import type { HistoryConversation } from '@/types';
 
-export interface HistoryConversation {
-  id: string;
-  title: string;
-  messages: HistoryMessage[];
-}
-
+/**
+ * 历史对话数据列表
+ * 包含8条模拟对话，涵盖经营分析、客户筛选、产品统计、趋势分析等场景
+ */
 export const historyConversations: HistoryConversation[] = [
   {
     id: 'h1',
     title: '经营单元收入&完成率...',
     messages: [
-      {
-        id: 'h1-m1',
-        role: 'user',
-        content: '各经营单元的收入和完成率是多少？',
-      },
+      { id: 'h1-m1', role: 'user', content: '各经营单元的收入和完成率是多少？' },
       {
         id: 'h1-m2',
         role: 'assistant',
@@ -51,7 +44,7 @@ export const historyConversations: HistoryConversation[] = [
               { name: '目标(万元)', values: [3000, 3200, 2200, 1800], color: 'secondary', unit: '万元' },
             ],
           },
-          meta: { durationMs: 1850, tokenCount: 1240, timestamp: Date.now() - 86400000 * 1 },
+          meta: { durationMs: 1850, tokenCount: 1240, timestamp: Date.now() - 86400000 },
         },
       },
     ],
@@ -60,11 +53,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h2',
     title: '政企行业收入筛选',
     messages: [
-      {
-        id: 'h2-m1',
-        role: 'user',
-        content: '筛选政企行业收入前5的客户',
-      },
+      { id: 'h2-m1', role: 'user', content: '筛选政企行业收入前5的客户' },
       {
         id: 'h2-m2',
         role: 'assistant',
@@ -102,11 +91,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h3',
     title: '产品型号销售统计',
     messages: [
-      {
-        id: 'h3-m1',
-        role: 'user',
-        content: '2026年销售最多的3个产品型号是什么？用条形图展示销售额和占比。',
-      },
+      { id: 'h3-m1', role: 'user', content: '2026年销售最多的3个产品型号是什么？用条形图展示销售额和占比。' },
       {
         id: 'h3-m2',
         role: 'assistant',
@@ -143,11 +128,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h4',
     title: '产品线同比趋势分析',
     messages: [
-      {
-        id: 'h4-m1',
-        role: 'user',
-        content: '分析各产品线同比趋势',
-      },
+      { id: 'h4-m1', role: 'user', content: '分析各产品线同比趋势' },
       {
         id: 'h4-m2',
         role: 'assistant',
@@ -184,11 +165,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h5',
     title: '月度合同金额趋势',
     messages: [
-      {
-        id: 'h5-m1',
-        role: 'user',
-        content: '近6个月的合同金额趋势如何？',
-      },
+      { id: 'h5-m1', role: 'user', content: '近6个月的合同金额趋势如何？' },
       {
         id: 'h5-m2',
         role: 'assistant',
@@ -228,11 +205,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h6',
     title: '高风险项目统计',
     messages: [
-      {
-        id: 'h6-m1',
-        role: 'user',
-        content: '当前有哪些高风险项目需要关注？',
-      },
+      { id: 'h6-m1', role: 'user', content: '当前有哪些高风险项目需要关注？' },
       {
         id: 'h6-m2',
         role: 'assistant',
@@ -263,11 +236,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h7',
     title: '北京代表处达成',
     messages: [
-      {
-        id: 'h7-m1',
-        role: 'user',
-        content: '北京代表处本季度目标达成情况',
-      },
+      { id: 'h7-m1', role: 'user', content: '北京代表处本季度目标达成情况' },
       {
         id: 'h7-m2',
         role: 'assistant',
@@ -304,11 +273,7 @@ export const historyConversations: HistoryConversation[] = [
     id: 'h8',
     title: '江西办事处预警',
     messages: [
-      {
-        id: 'h8-m1',
-        role: 'user',
-        content: '江西办事处有哪些预警信息？',
-      },
+      { id: 'h8-m1', role: 'user', content: '江西办事处有哪些预警信息？' },
       {
         id: 'h8-m2',
         role: 'assistant',

@@ -17,23 +17,37 @@
 ```
 src/
 ├── app/
-│   ├── api/chat/route.ts    # AI 问答 API (POST)
-│   ├── layout.tsx            # 根布局
-│   ├── page.tsx              # 首页入口
-│   └── globals.css           # 全局样式
+│   ├── api/chat/route.ts          # AI 问答 API（薄层，调用 service）
+│   ├── layout.tsx                  # 根布局
+│   ├── page.tsx                    # 首页入口
+│   └── globals.css                 # 全局样式
+├── types/
+│   └── index.ts                    # 全局类型定义集中管理
 ├── components/
-│   ├── home-page.tsx         # 主页面容器（页面路由切换）
-│   ├── sidebar.tsx           # 左侧导航栏（支持系统管理展开子菜单）
-│   ├── chat-interface.tsx    # 对话界面（含欢迎页、消息列表、输入框）
-│   ├── app-config-page.tsx   # 应用配置页面（6个功能开关卡片）
-│   ├── reply-proof-page.tsx  # 回复校对页面（搜索过滤+数据表格+分页）
-│   └── history-panel.tsx     # 历史对话侧边栏面板
+│   ├── home-page.tsx               # 主页面容器（路由切换 + 状态管理）
+│   ├── layout/
+│   │   └── sidebar.tsx             # 左侧导航栏（支持子菜单展开）
+│   ├── chat/
+│   │   ├── chat-interface.tsx      # 对话界面主组件（状态管理 + 布局）
+│   │   ├── message-bubble.tsx      # 消息气泡（用户/AI，含操作栏）
+│   │   ├── input-bar.tsx           # 底部输入框（文本 + 语音输入）
+│   │   ├── history-panel.tsx       # 历史对话侧边栏面板
+│   │   └── data-chart.tsx          # 数据可视化柱状图（纯SVG）
+│   ├── config/
+│   │   └── app-config-page.tsx     # 应用配置页面（6个功能开关卡片）
+│   └── feedback/
+│       └── reply-proof-page.tsx    # 回复校对页面（搜索+表格+分页+弹窗）
 ├── lib/
-│   ├── utils.ts              # 通用工具 (cn)
-│   ├── mock-data.ts          # 虚拟经营数据库 + 查询逻辑
-│   ├── history-data.ts       # 历史对话模拟数据
-│   └── speech.ts             # Web Speech API 工具（TTS 朗读 + STT 语音输入）
-└── server.ts                 # 自定义服务端入口
+│   ├── data/
+│   │   ├── mock-data.ts            # 虚拟经营数据库 + 查询引擎
+│   │   └── history-data.ts         # 历史对话模拟数据
+│   ├── services/
+│   │   └── chat-service.ts         # 对话处理服务（业务逻辑层）
+│   ├── utils/
+│   │   ├── helpers.ts              # 通用辅助函数（cn 类名合并等）
+│   │   └── speech.ts               # Web Speech API（TTS + STT）
+│   └── utils.ts                    # shadcn/ui 依赖的 cn 函数（保留）
+└── server.ts                       # 自定义服务端入口
 ```
 
 ## 核心功能
