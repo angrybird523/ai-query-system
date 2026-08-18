@@ -10,16 +10,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-/**
- * 侧边栏组件属性
- */
-interface SidebarProps {
-  /** 当前激活的菜单标识 */
-  activeMenu: string;
-  /** 菜单切换回调 */
-  onMenuChange: (menu: string) => void;
-}
-
 /** 展开/收起箭头图标 */
 const ChevronDown = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -31,6 +21,11 @@ const ChevronDown = () => (
  * 左侧导航栏组件
  * 固定宽度240px，包含Logo、导航菜单、版本号
  */
+interface SidebarProps {
+  activeMenu: string;
+  onMenuChange: (menu: string) => void;
+}
+
 export function Sidebar({ activeMenu, onMenuChange }: SidebarProps) {
   // 子菜单展开状态
   const [systemExpanded, setSystemExpanded] = useState(activeMenu === 'app-config');
@@ -89,12 +84,12 @@ export function Sidebar({ activeMenu, onMenuChange }: SidebarProps) {
             <button onClick={handleSystemClick}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                activeMenu === 'system' || activeMenu === 'app-config'
+                activeMenu === 'system' || activeMenu === 'app-config' || activeMenu === 'model-config'
                   ? 'bg-[#2563EB] text-white shadow-sm'
                   : 'text-[#64748B] hover:bg-[#E2E8F0]/60 hover:text-[#334155]'
               )}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15-.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
               <span className="flex-1 text-left">系统管理</span>

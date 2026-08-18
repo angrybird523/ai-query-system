@@ -32,19 +32,35 @@ interface ChatInterfaceProps {
   currentConversation?: HistoryConversation | null;
   /** 消息更新回调：将当前对话的最新消息同步给父组件，用于持久化 */
   onMessagesUpdate?: (conversationId: string, messages: Message[], title: string) => void;
+  /** 自动创建新对话回调：当用户在无对话状态下发送消息时，自动创建一条新记录 */
+  onAutoCreateConversation?: (messages: Message[], title: string) => string;
 }
 
 /**
  * 智能问数对话界面主组件
  * 管理消息列表状态、处理用户发送消息、展示欢迎页或对话内容
  */
-export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInterfaceProps) {
+export function ChatInterface({ currentConversation, onMessagesUpdate, onAutoCreateConversation }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 当选中历史对话变化时，加载对应的消息
+  // 记录当前对话 ID（可能来自 props，也可能是自动创建的）
+  const [localConversationId, setLocalConversationId] = useState<string | null>(null);
+  // 用 ref 同步追踪 conversation ID，解决 handleSend 闭包中 state 未更新的问题
+  const localConvIdRef = useRef<string | null>(null);
+  // 用 ref 追踪上一次加载的 conversation ID，避免父组件同步数据时重复重置消息
+  const prevLoadedConvIdRef = useRef<string | null>(null);
+
+  // 仅当 conversation ID 真正变化时（用户切换对话 / 新建对话），才重置本地消息
+  // 父组件因 syncToParent 更新 currentConversation 对象引用时，ID 不变，不会触发重置
   useEffect(() => {
+    const convId = currentConversation?.id ?? null;
+    if (convId === prevLoadedConvIdRef.current) return;
+    prevLoadedConvIdRef.current = convId;
+    setLocalConversationId(convId);
+    localConvIdRef.current = convId;
+
     if (currentConversation && currentConversation.messages.length > 0) {
       setMessages(currentConversation.messages.map((m) => ({
         id: m.id,
@@ -52,9 +68,11 @@ export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInt
         content: m.content,
         data: m.data,
       })));
-    } else {
+    } else if (convId !== null) {
+      // 切换到一个没有消息的对话（如点了"新建对话"），清空本地消息
       setMessages([]);
     }
+    // convId === null 时不清空消息（自动创建对话后 selectedConversation 可能仍为 null）
   }, [currentConversation]);
 
   // 消息更新后自动滚动到底部
@@ -63,16 +81,36 @@ export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInt
   }, [messages]);
 
   /**
-   * 将当前消息同步给父组件（持久化到对话历史）
+   * 获取有效的对话 ID：优先用已有的，否则自动创建新对话
    */
-  const syncToParent = (newMessages: Message[]) => {
-    if (currentConversation && onMessagesUpdate) {
-      // 用第一条用户消息作为对话标题
+  const getEffectiveConversationId = (newMessages: Message[]): string | null => {
+    // 用 ref 而非 state，避免闭包读到过期值
+    if (localConvIdRef.current) return localConvIdRef.current;
+    // 没有对话记录，自动创建一条新对话
+    if (onAutoCreateConversation) {
       const firstUserMsg = newMessages.find((m) => m.role === 'user');
       const title = firstUserMsg
         ? (firstUserMsg.content.length > 15 ? firstUserMsg.content.slice(0, 15) + '...' : firstUserMsg.content)
-        : currentConversation.title;
-      onMessagesUpdate(currentConversation.id, newMessages, title);
+        : '新对话';
+      const newId = onAutoCreateConversation(newMessages, title);
+      localConvIdRef.current = newId;
+      setLocalConversationId(newId);
+      return newId;
+    }
+    return null;
+  };
+
+  /**
+   * 将当前消息同步给父组件（持久化到对话历史）
+   */
+  const syncToParent = (newMessages: Message[]) => {
+    const convId = getEffectiveConversationId(newMessages);
+    if (convId && onMessagesUpdate) {
+      const firstUserMsg = newMessages.find((m) => m.role === 'user');
+      const title = firstUserMsg
+        ? (firstUserMsg.content.length > 15 ? firstUserMsg.content.slice(0, 15) + '...' : firstUserMsg.content)
+        : '新对话';
+      onMessagesUpdate(convId, newMessages, title);
     }
   };
 
@@ -100,6 +138,14 @@ export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInt
     const updatedMessages = [...messages, userMessage, loadingMessage];
     setMessages(updatedMessages);
     setIsLoading(true);
+
+    // 如果当前没有对话记录（既没有本地 ID，props 也没传），自动创建一条新对话
+    if (!localConvIdRef.current && !currentConversation?.id && onAutoCreateConversation) {
+      const title = content.length > 15 ? content.slice(0, 15) + '...' : content;
+      const newId = onAutoCreateConversation(updatedMessages, title);
+      localConvIdRef.current = newId;
+      setLocalConversationId(newId);
+    }
 
     try {
       // 3. 调用后端 API

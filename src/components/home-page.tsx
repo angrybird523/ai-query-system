@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ChatInterface } from '@/components/chat/chat-interface';
 import { AppConfigPage } from '@/components/config/app-config-page';
+import { ModelConfigPage } from '@/components/config/model-config-page';
 import { ReplyProofPage } from '@/components/feedback/reply-proof-page';
 import { HistoryPanel } from '@/components/chat/history-panel';
 import { historyConversations as initialConversations } from '@/lib/data/history-data';
@@ -29,6 +30,20 @@ const initialConfigStates: Record<string, boolean> = {
   model: true,
   faq: true,
 };
+
+/**
+ * 初始开场白文案
+ */
+const initialGreetingText = '欢迎使用智能AI问数，您可以向我咨询经营数据、报表分析相关问题。';
+
+/**
+ * 初始开场问题（最多10个）
+ */
+const initialOpeningQuestions = [
+  '各产品线销售情况',
+  '北京的产品线收入情况',
+  '深圳的产品销售情况',
+];
 
 /**
  * 初始反馈数据（6条模拟记录）
@@ -59,6 +74,14 @@ export function HomePage() {
   const [configStates, setConfigStates] = useState<Record<string, boolean>>(initialConfigStates);
   // 反馈校对数据（提升到顶层，避免切换页面时丢失）
   const [feedbackData, setFeedbackData] = useState<FeedbackRecord[]>(initialFeedbackData);
+  // 开场白文案
+  const [greetingText, setGreetingText] = useState(initialGreetingText);
+  // 开场问题列表
+  const [openingQuestions, setOpeningQuestions] = useState<string[]>(initialOpeningQuestions);
+  // 选中的AI模型
+  const [selectedModel, setSelectedModel] = useState('qwen-turbo');
+  // 常问问题频次阈值
+  const [faqThreshold, setFaqThreshold] = useState(3);
 
   /** 切换指定配置项的启用状态 */
   const handleToggleConfig = (id: string) => {
@@ -68,6 +91,21 @@ export function HomePage() {
   /** 更新反馈数据 */
   const handleUpdateFeedback = (updated: FeedbackRecord[]) => {
     setFeedbackData(updated);
+  };
+
+  /** 更新开场白文案 */
+  const handleUpdateGreeting = (text: string) => {
+    setGreetingText(text);
+  };
+
+  /** 更新常问频次阈值 */
+  const handleUpdateFaqThreshold = (value: number) => {
+    setFaqThreshold(value);
+  };
+
+  /** 更新开场问题列表 */
+  const handleUpdateOpeningQuestions = (questions: string[]) => {
+    setOpeningQuestions(questions);
   };
 
   /** 菜单切换处理：切换页面时清除对话选中状态 */
@@ -163,7 +201,9 @@ export function HomePage() {
   const renderContent = () => {
     switch (activeMenu) {
       case 'app-config':
-        return <AppConfigPage configStates={configStates} onToggleConfig={handleToggleConfig} />;
+        return <AppConfigPage configStates={configStates} onToggleConfig={handleToggleConfig} greetingText={greetingText} onUpdateGreeting={handleUpdateGreeting} openingQuestions={openingQuestions} onUpdateOpeningQuestions={handleUpdateOpeningQuestions} faqThreshold={faqThreshold} onUpdateFaqThreshold={handleUpdateFaqThreshold} onNavigateToModelConfig={() => setActiveMenu('model-config')} />;
+      case 'model-config':
+        return <ModelConfigPage selectedModel={selectedModel} onSelectModel={setSelectedModel} />;
       case 'reply-proof':
         return <ReplyProofPage feedbackData={feedbackData} onUpdateFeedback={handleUpdateFeedback} />;
       default:

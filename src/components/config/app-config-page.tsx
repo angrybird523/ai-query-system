@@ -8,6 +8,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { ConfigItem } from '@/types';
 
@@ -44,10 +45,27 @@ const defaultEnabled: Record<string, boolean> = {
 export function AppConfigPage({
   configStates,
   onToggleConfig,
+  greetingText,
+  onUpdateGreeting,
+  openingQuestions,
+  onUpdateOpeningQuestions,
+  faqThreshold,
+  onUpdateFaqThreshold,
+  onNavigateToModelConfig,
 }: {
   configStates: Record<string, boolean>;
   onToggleConfig: (id: string) => void;
+  greetingText: string;
+  onUpdateGreeting: (text: string) => void;
+  openingQuestions: string[];
+  onUpdateOpeningQuestions: (questions: string[]) => void;
+  faqThreshold: number;
+  onUpdateFaqThreshold: (value: number) => void;
+  onNavigateToModelConfig?: () => void;
 }) {
+  const [greetingModalOpen, setGreetingModalOpen] = useState(false);
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-full">
       {/* 顶部标题栏 */}
@@ -83,12 +101,43 @@ export function AppConfigPage({
             {configMeta.map((meta) => {
               const config: ConfigItem = { ...meta, enabled: configStates[meta.id] ?? defaultEnabled[meta.id] };
               return (
-                <ConfigCard key={config.id} config={config} onToggle={() => onToggleConfig(config.id)} />
+                <ConfigCard
+                  key={config.id}
+                  config={config}
+                  onToggle={() => onToggleConfig(config.id)}
+                  onOpenSettings={config.id === 'greeting' ? () => setGreetingModalOpen(true) : config.id === 'model' ? onNavigateToModelConfig : config.id === 'faq' ? () => setFaqModalOpen(true) : undefined}
+                />
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* 开场白设置弹窗 */}
+      {greetingModalOpen && (
+        <GreetingModal
+          greetingText={greetingText}
+          openingQuestions={openingQuestions}
+          onClose={() => setGreetingModalOpen(false)}
+          onSave={(text, questions) => {
+            onUpdateGreeting(text);
+            onUpdateOpeningQuestions(questions);
+            setGreetingModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* 常问设置弹窗 */}
+      {faqModalOpen && (
+        <FaqModal
+          threshold={faqThreshold}
+          onClose={() => setFaqModalOpen(false)}
+          onSave={(value) => {
+            onUpdateFaqThreshold(value);
+            setFaqModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -97,7 +146,7 @@ export function AppConfigPage({
  * 单个配置卡片组件
  * 展示配置项的图标、标题、描述和开关
  */
-function ConfigCard({ config, onToggle }: { config: ConfigItem; onToggle: () => void }) {
+function ConfigCard({ config, onToggle, onOpenSettings }: { config: ConfigItem; onToggle: () => void; onOpenSettings?: () => void }) {
   return (
     <div className={cn('border rounded-xl p-5 transition-all duration-200',
       config.enabled ? 'border-[#2563EB]/20 bg-white' : 'border-[#E2E8F0] bg-[#FAFBFC]')}>
@@ -109,7 +158,7 @@ function ConfigCard({ config, onToggle }: { config: ConfigItem; onToggle: () => 
         </div>
         {/* 设置入口（仅部分配置项有） */}
         {config.hasSettings && (
-          <button className="p-1.5 rounded-md text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors" title="设置">
+          <button className="p-1.5 rounded-md text-[#94A3B8] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors" title="设置" onClick={onOpenSettings}>
             <GearIcon />
           </button>
         )}
@@ -136,5 +185,243 @@ function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: () =>
       <span className={cn('absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200',
         enabled ? 'translate-x-4' : 'translate-x-0')} />
     </button>
+  );
+}
+
+/**
+ * 开场白设置弹窗
+ * 包含开场白文案编辑、开场问题列表管理（最多10个）
+ */
+function GreetingModal({
+  greetingText,
+  openingQuestions,
+  onClose,
+  onSave,
+}: {
+  greetingText: string;
+  openingQuestions: string[];
+  onClose: () => void;
+  onSave: (text: string, questions: string[]) => void;
+}) {
+  const [draftText, setDraftText] = useState(greetingText);
+  const [draftQuestions, setDraftQuestions] = useState<string[]>([...openingQuestions]);
+
+  const handleAddQuestion = () => {
+    if (draftQuestions.length >= 10) return;
+    setDraftQuestions((prev) => [...prev, '']);
+  };
+
+  const handleQuestionChange = (index: number, value: string) => {
+    setDraftQuestions((prev) => prev.map((q, i) => (i === index ? value : q)));
+  };
+
+  const handleRemoveQuestion = (index: number) => {
+    setDraftQuestions((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+    // 过滤掉空问题
+    const filtered = draftQuestions.filter((q) => q.trim());
+    onSave(draftText, filtered);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      {/* 半透明遮罩 */}
+      <div className="absolute inset-0 bg-black/40" />
+      {/* 弹窗内容 */}
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 弹窗头部 */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div className="flex items-center gap-2">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <path d="M8 10h.01" /><path d="M12 10h.01" /><path d="M16 10h.01" />
+            </svg>
+            <h2 className="text-[16px] font-semibold text-[#0F172A]">对话开场白</h2>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 弹窗主体 */}
+        <div className="px-6 pb-4 max-h-[60vh] overflow-y-auto">
+          {/* 开场白文案 */}
+          <div className="mb-5">
+            <label className="block text-[14px] font-medium text-[#0F172A] mb-2">开场白文案</label>
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              className="w-full h-[80px] px-3 py-2 text-[14px] text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-colors"
+              placeholder="输入开场白文案..."
+            />
+          </div>
+
+          {/* 开场问题 */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[14px] font-medium text-[#0F172A]">
+                开场问题 · {draftQuestions.length}/10
+              </label>
+              <button
+                onClick={handleAddQuestion}
+                disabled={draftQuestions.length >= 10}
+                className={cn(
+                  'text-[13px] font-medium transition-colors',
+                  draftQuestions.length >= 10
+                    ? 'text-[#CBD5E1] cursor-not-allowed'
+                    : 'text-[#2563EB] hover:text-[#1D4ED8] cursor-pointer'
+                )}
+              >
+                <span className="flex items-center gap-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M12 5v14" /><path d="M5 12h14" />
+                  </svg>
+                  添加开场问题
+                </span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {draftQuestions.map((q, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={q}
+                    onChange={(e) => handleQuestionChange(i, e.target.value)}
+                    className="flex-1 px-3 py-2 text-[14px] text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-colors"
+                    placeholder="输入开场问题..."
+                  />
+                  <button
+                    onClick={() => handleRemoveQuestion(i)}
+                    className="p-1 rounded text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"
+                    title="删除"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 弹窗底部按钮 */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[#E2E8F0]">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 text-[14px] font-medium text-[#EF4444] hover:text-[#DC2626] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-6 py-2.5 bg-[#2563EB] text-white text-[14px] font-medium rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-sm"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 常问设置弹窗
+ * 设置问题频次阈值，超过此值的提问视为常问问题
+ */
+function FaqModal({
+  threshold,
+  onClose,
+  onSave,
+}: {
+  threshold: number;
+  onClose: () => void;
+  onSave: (value: number) => void;
+}) {
+  const [draftValue, setDraftValue] = useState(threshold);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    if (!isNaN(val) && val >= 1) {
+      setDraftValue(val);
+    }
+  };
+
+  const handleSave = () => {
+    onSave(Math.max(1, draftValue));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      {/* 半透明遮罩 */}
+      <div className="absolute inset-0 bg-black/40" />
+      {/* 弹窗内容 */}
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 弹窗头部 */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div className="flex items-center gap-2">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+            </svg>
+            <h2 className="text-[16px] font-semibold text-[#0F172A]">常问设置</h2>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 弹窗主体 */}
+        <div className="px-6 pb-6">
+          {/* 问题频次阈值 */}
+          <div>
+            <label className="block text-[14px] font-medium text-[#0F172A] mb-3">问题频次阈值</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1}
+                value={draftValue}
+                onChange={handleChange}
+                className="w-[100px] px-3 py-2 text-[14px] text-[#0F172A] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-colors"
+              />
+              <span className="text-[14px] text-[#94A3B8]">次（同一问题出现次数超过此值即视为常问）</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 弹窗底部按钮 */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E2E8F0]">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 text-[14px] font-medium text-[#EF4444] hover:text-[#DC2626] transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-6 py-2.5 bg-[#2563EB] text-white text-[14px] font-medium rounded-lg hover:bg-[#1D4ED8] transition-colors shadow-sm"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
