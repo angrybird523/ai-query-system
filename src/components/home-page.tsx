@@ -15,7 +15,32 @@ import { AppConfigPage } from '@/components/config/app-config-page';
 import { ReplyProofPage } from '@/components/feedback/reply-proof-page';
 import { HistoryPanel } from '@/components/chat/history-panel';
 import { historyConversations as initialConversations } from '@/lib/data/history-data';
-import type { HistoryConversation, Message } from '@/types';
+import type { HistoryConversation, Message, FeedbackRecord } from '@/types';
+
+/**
+ * 初始应用配置开关状态
+ * 提升到 HomePage 管理，确保切换页面时状态不会丢失
+ */
+const initialConfigStates: Record<string, boolean> = {
+  greeting: true,
+  suggestions: true,
+  tts: false,
+  stt: false,
+  model: true,
+  faq: true,
+};
+
+/**
+ * 初始反馈数据（6条模拟记录）
+ */
+const initialFeedbackData: FeedbackRecord[] = [
+  { id: 1, user: '张经理', question: '上季度销售目标达成率', aiReply: '上季度销售目标达成率为90%，已超额完成目标。详细数据请参见销售达成率趋势图。', time: '2026/8/5 15:38:05', status: '待处理', remark: '' },
+  { id: 2, user: '李主管', question: '本月应收账款账龄', aiReply: '本月应收账款账龄分布如下：30天以内占比62%，30-60天占比23%，60-90天占比10%，90天以上占比5%。整体回款情况良好。', time: '2026/8/2 15:38:05', status: '待处理', remark: '' },
+  { id: 3, user: '王主任', question: '各区域成本对比', aiReply: '各区域成本对比结果：华东区域成本最高，占总成本35%；华南区域次之，占28%；华北区域占22%；西部区域占15%。', time: '2026/7/30 15:38:05', status: '待处理', remark: '' },
+  { id: 4, user: '赵专员', question: '年度预算执行情况', aiReply: '年度预算执行率为78%，其中研发部门执行率最高达92%，市场部门执行率为85%，行政部门执行率为65%。', time: '2026/7/27 15:38:05', status: '待处理', remark: '' },
+  { id: 5, user: '张经理', question: '上季度销售目标达成率', aiReply: '上季度销售目标达成率为87%，略低于预期目标。主要受华南区域业绩下滑影响，建议加强该区域销售策略。', time: '2026/7/24 15:38:05', status: '待处理', remark: '' },
+  { id: 6, user: '李主管', question: '本月应收账款账龄', aiReply: '本月应收账款总额1200万元，其中30天以内720万元（60%），30-60天276万元（23%），60天以上204万元（17%）。', time: '2026/7/21 15:38:05', status: '待处理', remark: '' },
+];
 
 /**
  * 主页面容器
@@ -30,6 +55,20 @@ export function HomePage() {
   const [conversations, setConversations] = useState<HistoryConversation[]>(initialConversations);
   // 当前选中的历史对话
   const [selectedConversation, setSelectedConversation] = useState<HistoryConversation | null>(null);
+  // 应用配置开关状态（提升到顶层，避免切换页面时丢失）
+  const [configStates, setConfigStates] = useState<Record<string, boolean>>(initialConfigStates);
+  // 反馈校对数据（提升到顶层，避免切换页面时丢失）
+  const [feedbackData, setFeedbackData] = useState<FeedbackRecord[]>(initialFeedbackData);
+
+  /** 切换指定配置项的启用状态 */
+  const handleToggleConfig = (id: string) => {
+    setConfigStates((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  /** 更新反馈数据 */
+  const handleUpdateFeedback = (updated: FeedbackRecord[]) => {
+    setFeedbackData(updated);
+  };
 
   /** 菜单切换处理：切换页面时清除对话选中状态 */
   const handleMenuChange = (menu: string) => {
@@ -55,6 +94,20 @@ export function HomePage() {
     };
     setConversations((prev) => [newConversation, ...prev]);
     setSelectedConversation(newConversation);
+  };
+
+  /** 自动创建新对话：当用户在无对话状态下直接发消息时调用，返回新对话 ID */
+  const handleAutoCreateConversation = (_messages: Message[], title: string): string => {
+    const newId = `auto-${Date.now()}`;
+    const newConversation: HistoryConversation = {
+      id: newId,
+      title,
+      messages: [],
+    };
+    // 只加入历史列表，不设置 selectedConversation
+    // 避免触发 chat-interface 的 useEffect 重置消息（会清掉 loading 状态）
+    setConversations((prev) => [newConversation, ...prev]);
+    return newId;
   };
 
   /** 删除对话记录 */
@@ -110,14 +163,15 @@ export function HomePage() {
   const renderContent = () => {
     switch (activeMenu) {
       case 'app-config':
-        return <AppConfigPage />;
+        return <AppConfigPage configStates={configStates} onToggleConfig={handleToggleConfig} />;
       case 'reply-proof':
-        return <ReplyProofPage />;
+        return <ReplyProofPage feedbackData={feedbackData} onUpdateFeedback={handleUpdateFeedback} />;
       default:
         return (
           <ChatInterface
             currentConversation={selectedConversation}
             onMessagesUpdate={handleMessagesUpdate}
+            onAutoCreateConversation={handleAutoCreateConversation}
           />
         );
     }

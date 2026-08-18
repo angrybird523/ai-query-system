@@ -2,12 +2,12 @@
  * 文件名: app-config-page.tsx
  * 功能描述: 应用配置页面，展示6个功能开关卡片（开场白、问题建议、TTS、STT、模型配置、常问设置），
  *           采用两行三列网格布局，支持开关切换和设置入口。
+ *           状态由父组件 HomePage 管理，切换页面不会丢失。
  * 主要导出: AppConfigPage
  */
 
 'use client';
 
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { ConfigItem } from '@/types';
 
@@ -20,31 +20,34 @@ const GearIcon = () => (
 );
 
 /**
- * 初始配置项列表（6个功能开关）
+ * 静态配置元数据（图标、标题、描述，不含开关状态）
  */
-const initialConfigs: ConfigItem[] = [
-  { id: 'greeting', title: '对话开场白', description: '开启后，新对话将自动显示开场白引导语（如"欢迎使用智能AI问数..."）', enabled: true, hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01" /><path d="M12 10h.01" /><path d="M16 10h.01" /></svg>) },
-  { id: 'suggestions', title: '下一步问题建议', description: '开启后，AI回复下方自动生成3条相关延伸问题提示条', enabled: true, hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>) },
-  { id: 'tts', title: '文字转语音', description: '开启后，AI回答支持语音播报功能', enabled: false, hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></svg>) },
-  { id: 'stt', title: '语音转文字', description: '开启后，支持通过语音输入问题', enabled: false, hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>) },
-  { id: 'model', title: '模型配置', description: '配置各业务场景使用的AI模型', enabled: true, hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>) },
-  { id: 'faq', title: '常问设置', description: '根据经常提问频次，在快捷提问中能看到常问问题', enabled: true, hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" /></svg>) },
+const configMeta: { id: string; title: string; description: string; hasSettings: boolean; icon: React.ReactNode }[] = [
+  { id: 'greeting', title: '对话开场白', description: '开启后，新对话将自动显示开场白引导语（如"欢迎使用智能AI问数..."）', hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01" /><path d="M12 10h.01" /><path d="M16 10h.01" /></svg>) },
+  { id: 'suggestions', title: '下一步问题建议', description: '开启后，AI回复下方自动生成3条相关延伸问题提示条', hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>) },
+  { id: 'tts', title: '文字转语音', description: '开启后，AI回答支持语音播报功能', hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></svg>) },
+  { id: 'stt', title: '语音转文字', description: '开启后，支持通过语音输入问题', hasSettings: false, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></svg>) },
+  { id: 'model', title: '模型配置', description: '配置各业务场景使用的AI模型', hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>) },
+  { id: 'faq', title: '常问设置', description: '根据经常提问频次，在快捷提问中能看到常问问题', hasSettings: true, icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" /></svg>) },
 ];
+
+/** 默认启用状态 */
+const defaultEnabled: Record<string, boolean> = {
+  greeting: true, suggestions: true, tts: false, stt: false, model: true, faq: true,
+};
 
 /**
  * 应用配置页面
  * 展示6个功能开关卡片，支持启用/禁用切换
+ * 状态由父组件传入，切换页面后不会丢失
  */
-export function AppConfigPage() {
-  const [configs, setConfigs] = useState<ConfigItem[]>(initialConfigs);
-
-  /** 切换指定配置项的启用状态 */
-  const toggleConfig = (id: string) => {
-    setConfigs((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
-    );
-  };
-
+export function AppConfigPage({
+  configStates,
+  onToggleConfig,
+}: {
+  configStates: Record<string, boolean>;
+  onToggleConfig: (id: string) => void;
+}) {
   return (
     <div className="flex flex-col h-full">
       {/* 顶部标题栏 */}
@@ -77,9 +80,12 @@ export function AppConfigPage() {
 
           {/* 配置卡片网格（3列） */}
           <div className="grid grid-cols-3 gap-4">
-            {configs.map((config) => (
-              <ConfigCard key={config.id} config={config} onToggle={() => toggleConfig(config.id)} />
-            ))}
+            {configMeta.map((meta) => {
+              const config: ConfigItem = { ...meta, enabled: configStates[meta.id] ?? defaultEnabled[meta.id] };
+              return (
+                <ConfigCard key={config.id} config={config} onToggle={() => onToggleConfig(config.id)} />
+              );
+            })}
           </div>
         </div>
       </div>
