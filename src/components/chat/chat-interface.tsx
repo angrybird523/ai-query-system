@@ -101,9 +101,6 @@ export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInt
     setMessages(updatedMessages);
     setIsLoading(true);
 
-    // 同步用户消息到父组件
-    syncToParent(updatedMessages);
-
     try {
       // 3. 调用后端 API
       const response = await fetch('/api/chat', {
@@ -113,6 +110,10 @@ export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInt
       });
 
       const result = await response.json();
+
+      // 保证loading至少显示1.2秒，让用户能看到
+      const minDelay = new Promise(resolve => setTimeout(resolve, 1200));
+      await minDelay;
 
       // 4. 用AI回复替换loading消息
       if (result.success) {

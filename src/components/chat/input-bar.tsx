@@ -85,7 +85,7 @@ export function InputBar({ onSend, isLoading }: InputBarProps) {
   return (
     <div className="shrink-0 border-t border-[#E2E8F0] bg-white px-6 py-4">
       <div className="max-w-[800px] mx-auto">
-        <div className="flex items-end gap-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 focus-within:border-[#2563EB]/30 focus-within:bg-white transition-all shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="flex items-center gap-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-4 py-3 focus-within:border-[#2563EB]/30 focus-within:bg-white transition-all shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           {/* 语音输入按钮 */}
           <button
             onClick={isRecording ? handleStopRecording : handleStartRecording}
