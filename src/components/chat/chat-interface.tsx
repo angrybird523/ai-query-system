@@ -3,6 +3,7 @@
  * 功能描述: 智能问数对话界面主组件，负责状态管理和整体布局。
  *           整合欢迎页、消息列表、输入框、历史对话等功能。
  *           通过调用后端 API 获取AI回复，支持流式交互体验。
+ *           通过 onMessagesUpdate 回调将消息同步给父组件，实现对话历史持久化。
  * 主要导出: ChatInterface
  */
 
@@ -29,13 +30,15 @@ const SUGGESTED_QUESTIONS = [
 interface ChatInterfaceProps {
   /** 当前选中的历史对话（可选） */
   currentConversation?: HistoryConversation | null;
+  /** 消息更新回调：将当前对话的最新消息同步给父组件，用于持久化 */
+  onMessagesUpdate?: (conversationId: string, messages: Message[], title: string) => void;
 }
 
 /**
  * 智能问数对话界面主组件
  * 管理消息列表状态、处理用户发送消息、展示欢迎页或对话内容
  */
-export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
+export function ChatInterface({ currentConversation, onMessagesUpdate }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -60,6 +63,20 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
   }, [messages]);
 
   /**
+   * 将当前消息同步给父组件（持久化到对话历史）
+   */
+  const syncToParent = (newMessages: Message[]) => {
+    if (currentConversation && onMessagesUpdate) {
+      // 用第一条用户消息作为对话标题
+      const firstUserMsg = newMessages.find((m) => m.role === 'user');
+      const title = firstUserMsg
+        ? (firstUserMsg.content.length > 15 ? firstUserMsg.content.slice(0, 15) + '...' : firstUserMsg.content)
+        : currentConversation.title;
+      onMessagesUpdate(currentConversation.id, newMessages, title);
+    }
+  };
+
+  /**
    * 发送消息并获取AI回复
    * 流程：添加用户消息 → 显示loading → 调用API → 替换为AI回复
    */
@@ -80,8 +97,12 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
       loading: true,
     };
 
-    setMessages((prev) => [...prev, userMessage, loadingMessage]);
+    const updatedMessages = [...messages, userMessage, loadingMessage];
+    setMessages(updatedMessages);
     setIsLoading(true);
+
+    // 同步用户消息到父组件
+    syncToParent(updatedMessages);
 
     try {
       // 3. 调用后端 API
@@ -101,7 +122,10 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
           content: result.data.summary,
           data: result.data,
         };
-        setMessages((prev) => prev.map((m) => (m.id === loadingId ? aiMessage : m)));
+        const finalMessages = updatedMessages.map((m) => (m.id === loadingId ? aiMessage : m));
+        setMessages(finalMessages);
+        // 同步完整消息（含AI回复）到父组件
+        syncToParent(finalMessages);
       } else {
         // 错误处理
         const errorMessage: Message = {
@@ -109,7 +133,9 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
           role: 'assistant',
           content: result.error || '抱歉，处理您的请求时出现了问题，请稍后重试。',
         };
-        setMessages((prev) => prev.map((m) => (m.id === loadingId ? errorMessage : m)));
+        const finalMessages = updatedMessages.map((m) => (m.id === loadingId ? errorMessage : m));
+        setMessages(finalMessages);
+        syncToParent(finalMessages);
       }
     } catch {
       // 网络错误处理
@@ -118,7 +144,9 @@ export function ChatInterface({ currentConversation }: ChatInterfaceProps) {
         role: 'assistant',
         content: '网络连接异常，请检查网络后重试。',
       };
-      setMessages((prev) => prev.map((m) => (m.id === loadingId ? errorMessage : m)));
+      const finalMessages = updatedMessages.map((m) => (m.id === loadingId ? errorMessage : m));
+      setMessages(finalMessages);
+      syncToParent(finalMessages);
     } finally {
       setIsLoading(false);
     }

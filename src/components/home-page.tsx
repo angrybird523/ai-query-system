@@ -2,6 +2,7 @@
  * 文件名: home-page.tsx
  * 功能描述: 主页面容器组件，管理全局路由状态和页面切换。
  *           整合侧边栏导航、历史对话面板、以及各功能页面。
+ *           通过 onMessagesUpdate 回调接收子组件的消息更新，实现对话历史持久化。
  * 主要导出: HomePage
  */
 
@@ -14,7 +15,7 @@ import { AppConfigPage } from '@/components/config/app-config-page';
 import { ReplyProofPage } from '@/components/feedback/reply-proof-page';
 import { HistoryPanel } from '@/components/chat/history-panel';
 import { historyConversations as initialConversations } from '@/lib/data/history-data';
-import type { HistoryConversation } from '@/types';
+import type { HistoryConversation, Message } from '@/types';
 
 /**
  * 主页面容器
@@ -38,9 +39,11 @@ export function HomePage() {
     }
   };
 
-  /** 选中历史对话 */
+  /** 选中历史对话：从对话列表中取出最新的对话数据 */
   const handleSelectConversation = (conv: HistoryConversation) => {
-    setSelectedConversation(conv);
+    // 从 conversations 中取最新的（可能已更新过消息）
+    const latest = conversations.find((c) => c.id === conv.id);
+    setSelectedConversation(latest || conv);
   };
 
   /** 新建对话：创建空对话记录并添加到列表顶部 */
@@ -62,6 +65,47 @@ export function HomePage() {
     }
   };
 
+  /**
+   * 消息更新回调：当 ChatInterface 中的消息发生变化时调用
+   * 将最新消息同步到对话列表中，实现持久化
+   */
+  const handleMessagesUpdate = (conversationId: string, messages: Message[], title: string) => {
+    // 更新对话列表
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              title,
+              messages: messages.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                data: m.data,
+              })),
+            }
+          : c
+      )
+    );
+
+    // 同步更新当前选中的对话
+    setSelectedConversation((prev) => {
+      if (prev && prev.id === conversationId) {
+        return {
+          ...prev,
+          title,
+          messages: messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            data: m.data,
+          })),
+        };
+      }
+      return prev;
+    });
+  };
+
   /** 根据当前菜单渲染对应的内容页面 */
   const renderContent = () => {
     switch (activeMenu) {
@@ -70,7 +114,12 @@ export function HomePage() {
       case 'reply-proof':
         return <ReplyProofPage />;
       default:
-        return <ChatInterface currentConversation={selectedConversation} />;
+        return (
+          <ChatInterface
+            currentConversation={selectedConversation}
+            onMessagesUpdate={handleMessagesUpdate}
+          />
+        );
     }
   };
 
@@ -98,15 +147,16 @@ export function HomePage() {
       {isSmartQueryPage && !showHistory && (
         <button onClick={() => setShowHistory(true)}
           className="w-10 bg-[#F8FAFC] border-r border-[#E2E8F0] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors group"
-          title="展开历史对话">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-[#2563EB] transition-colors">
+          title="展开历史记录">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className="group-hover:stroke-[#2563EB] transition-colors">
             <path d="m9 18 6-6-6-6" />
           </svg>
         </button>
       )}
 
-      {/* 主内容区域 */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      {/* 右侧主内容区 */}
+      <main className="flex-1 overflow-hidden">
         {renderContent()}
       </main>
     </div>
