@@ -31,18 +31,14 @@ export function Sidebar({ activeMenu, onMenuChange }: SidebarProps) {
   const [systemExpanded, setSystemExpanded] = useState(activeMenu === 'app-config');
   const [feedbackExpanded, setFeedbackExpanded] = useState(activeMenu === 'reply-proof');
 
-  /** 点击系统管理：切换展开状态，展开时默认进入应用配置 */
+  /** 点击系统管理：仅切换展开/收起状态，不跳转页面 */
   const handleSystemClick = () => {
-    const next = !systemExpanded;
-    setSystemExpanded(next);
-    if (next) onMenuChange('app-config');
+    setSystemExpanded((v) => !v);
   };
 
-  /** 点击反馈管理：切换展开状态，展开时默认进入回复校对 */
+  /** 点击反馈管理：仅切换展开/收起状态，不跳转页面 */
   const handleFeedbackClick = () => {
-    const next = !feedbackExpanded;
-    setFeedbackExpanded(next);
-    if (next) onMenuChange('reply-proof');
+    setFeedbackExpanded((v) => !v);
   };
 
   return (

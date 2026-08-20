@@ -1,0 +1,42 @@
+# 经管之星智能问答系统 - Docker Compose 编排
+# 使用方式: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Python 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jinguanzhixing-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Next.js 前端服务
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jinguanzhixing-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - TZ=Asia/Shanghai
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

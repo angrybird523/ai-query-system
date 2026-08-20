@@ -18,8 +18,9 @@ export async function POST(request: Request) {
   try {
     const { message, conversationId } = await request.json();
 
-    // 转发请求到 Python 后端
-    const response = await fetch('http://localhost:8000/api/chat', {
+    // 转发请求到 Python 后端（支持通过环境变量配置地址）
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

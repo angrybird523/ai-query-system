@@ -196,4 +196,8 @@ export interface ConfigItem {
   hasSettings: boolean;
   /** 配置项图标 */
   icon: React.ReactNode;
+  /** 图标前景色类名（如 'text-[#2563EB]'） */
+  iconColor?: string;
+  /** 图标背景色类名（如 'bg-[#EFF6FF]'） */
+  iconBg?: string;
 }
